@@ -8,3 +8,7 @@ pub(crate) fn read_length(reader: &mut ByteReader) -> Option<isize> {
         .ok()
         .and_then(|s| s.parse().ok())
 }
+
+pub(crate) fn read_crlf(reader: &mut ByteReader) -> bool {
+    reader.read_byte() == Some(b'\r') && reader.read_byte() == Some(b'\n')
+}

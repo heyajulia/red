@@ -1,6 +1,6 @@
 use crate::bulk_string::{parse as parse_bulk_string, BulkString};
 use crate::byte_reader::ByteReader;
-use crate::utils::read_length;
+use crate::utils::{read_crlf, read_length};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Array {
@@ -51,11 +51,7 @@ pub(crate) fn parse(data: &[u8]) -> Result<Array, ArrayFormatError> {
                 return Err(ArrayFormatError::Data);
             }
 
-            if reader.read_byte() != Some(b'\r') {
-                return Err(ArrayFormatError::LengthTrailer);
-            }
-
-            if reader.read_byte() != Some(b'\n') {
+            if !read_crlf(&mut reader) {
                 return Err(ArrayFormatError::LengthTrailer);
             }
 
@@ -66,22 +62,14 @@ pub(crate) fn parse(data: &[u8]) -> Result<Array, ArrayFormatError> {
                 return Err(ArrayFormatError::Data);
             }
 
-            if reader.read_byte() != Some(b'\r') {
-                return Err(ArrayFormatError::LengthTrailer);
-            }
-
-            if reader.read_byte() != Some(b'\n') {
+            if !read_crlf(&mut reader) {
                 return Err(ArrayFormatError::LengthTrailer);
             }
 
             Ok(Array::Empty)
         }
         _ => {
-            if reader.read_byte() != Some(b'\r') {
-                return Err(ArrayFormatError::LengthTrailer);
-            }
-
-            if reader.read_byte() != Some(b'\n') {
+            if !read_crlf(&mut reader) {
                 return Err(ArrayFormatError::LengthTrailer);
             }
 

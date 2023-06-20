@@ -1,5 +1,5 @@
 use crate::byte_reader::ByteReader;
-use crate::utils::read_length;
+use crate::utils::{read_crlf, read_length};
 
 const MAX_BULK_STRING_LENGTH: isize = 512 * 1024 * 1024;
 
@@ -34,46 +34,32 @@ pub(crate) fn parse(reader: &mut ByteReader) -> Result<BulkString, BulkStringFor
 
     match length {
         -1 => {
-            if reader.read_byte() != Some(b'\r') {
-                return Err(BulkStringFormatError::LengthTrailer);
-            }
-
-            if reader.read_byte() != Some(b'\n') {
+            if !read_crlf(reader) {
                 return Err(BulkStringFormatError::LengthTrailer);
             }
 
             Ok(BulkString::Null)
         }
         0 => {
-            for _ in 0..2 {
-                if reader.read_byte() != Some(b'\r') {
-                    return Err(BulkStringFormatError::LengthTrailer);
-                }
+            if !read_crlf(reader) {
+                return Err(BulkStringFormatError::LengthTrailer);
+            }
 
-                if reader.read_byte() != Some(b'\n') {
-                    return Err(BulkStringFormatError::LengthTrailer);
-                }
+            if !read_crlf(reader) {
+                return Err(BulkStringFormatError::LengthTrailer);
             }
 
             Ok(BulkString::Empty)
         }
         _ => {
-            if reader.read_byte() != Some(b'\r') {
-                return Err(BulkStringFormatError::LengthTrailer);
-            }
-
-            if reader.read_byte() != Some(b'\n') {
+            if !read_crlf(reader) {
                 return Err(BulkStringFormatError::LengthTrailer);
             }
 
             let mut bytes = vec![0; length as usize];
             bytes.copy_from_slice(reader.slice(length as usize));
 
-            if reader.read_byte() != Some(b'\r') {
-                return Err(BulkStringFormatError::Data);
-            }
-
-            if reader.read_byte() != Some(b'\n') {
+            if !read_crlf(reader) {
                 return Err(BulkStringFormatError::Data);
             }
 
