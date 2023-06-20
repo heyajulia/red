@@ -88,6 +88,7 @@ pub(crate) fn parse(data: &[u8]) -> Result<Array, ArrayFormatError> {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 

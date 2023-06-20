@@ -68,6 +68,7 @@ pub(crate) fn parse(reader: &mut ByteReader) -> Result<BulkString, BulkStringFor
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
