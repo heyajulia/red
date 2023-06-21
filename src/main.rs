@@ -25,33 +25,70 @@ fn handle_client(mut stream: TcpStream) {
 
                 if let Ok(result) = parse(&buf[..n]) {
                     match result {
-                        Array::Null => stream.write_all(b"-ERR unexpected null array\r\n").unwrap(),
-                        Array::Empty => stream
-                            .write_all(b"-ERR unexpected empty array\r\n")
-                            .unwrap(),
+                        Array::Null => write_error(&mut stream, "unexpected null array"),
+                        Array::Empty => write_error(&mut stream, "unexpected empty array"),
                         Array::Filled(values) => match &values[0] {
                             Value::BulkString(bs) => match bs {
-                                BulkString::Null => stream
-                                    .write_all(b"-ERR unexpected null bulk string\r\n")
-                                    .unwrap(),
-                                BulkString::Empty => stream
-                                    .write_all(b"-ERR unexpected empty bulk string\r\n")
-                                    .unwrap(),
+                                BulkString::Null => {
+                                    write_error(&mut stream, "unexpected null bulk string")
+                                }
+                                BulkString::Empty => {
+                                    write_error(&mut stream, "unexpected empty bulk string")
+                                }
                                 BulkString::Filled(command) => {
                                     let command = match str::from_utf8(command) {
                                         Ok(command) => command,
                                         Err(_) => {
-                                            stream.write_all(b"-ERR invalid command\r\n").unwrap();
+                                            write_error(&mut stream, "invalid command");
+
                                             continue;
                                         }
                                     };
 
                                     match command.to_uppercase().as_str() {
                                         "PING" => {
-                                            // TODO: Implement diadic version of PING: https://redis.io/commands/ping/
-                                            stream.write_all(b"+PONG\r\n").unwrap()
+                                            if values.len() == 1 {
+                                                stream.write_all(b"+PONG\r\n").unwrap();
+                                            } else if values.len() == 2 {
+                                                match &values[1] {
+                                                    Value::BulkString(bs) => match bs {
+                                                        BulkString::Null => {
+                                                            write_error(
+                                                                &mut stream,
+                                                                "unexpected null bulk string",
+                                                            );
+                                                        }
+                                                        BulkString::Empty => {
+                                                            write_error(
+                                                                &mut stream,
+                                                                "unexpected empty bulk string",
+                                                            );
+                                                        }
+                                                        BulkString::Filled(argument) => {
+                                                            let mut response = vec![b'$'];
+
+                                                            response.extend(
+                                                                argument
+                                                                    .len()
+                                                                    .to_string()
+                                                                    .as_bytes(),
+                                                            );
+                                                            response.extend(b"\r\n");
+                                                            response.extend(argument);
+                                                            response.extend(b"\r\n");
+
+                                                            stream.write_all(&response).unwrap();
+                                                        }
+                                                    },
+                                                }
+                                            } else {
+                                                write_error(
+                                                    &mut stream,
+                                                    "wrong number of arguments",
+                                                );
+                                            }
                                         }
-                                        _ => stream.write_all(b"-ERR unknown command\r\n").unwrap(),
+                                        _ => write_error(&mut stream, "unknown command"),
                                     };
                                 }
                             },
@@ -81,4 +118,10 @@ fn main() {
             Err(e) => eprintln!("Error: {e}"),
         }
     }
+}
+
+fn write_error(stream: &mut TcpStream, message: &str) {
+    stream
+        .write_all(format!("-ERR {message}\r\n").as_bytes())
+        .unwrap();
 }
