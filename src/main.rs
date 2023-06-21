@@ -7,14 +7,12 @@ use std::thread;
 
 use crate::array::{parse, Array, Value};
 use crate::bulk_string::BulkString;
-use crate::command::Command;
-use crate::ping::Ping;
+use crate::commands::*;
 
 mod array;
 mod bulk_string;
 mod byte_reader;
-mod command;
-mod ping;
+mod commands;
 mod utils;
 
 type Commands = HashMap<&'static str, Box<dyn Command + Send + Sync>>;

@@ -1,6 +1,6 @@
+use super::Command;
 use crate::array::Value;
 use crate::bulk_string::BulkString;
-use crate::command::Command;
 
 pub(crate) struct Ping;
 
