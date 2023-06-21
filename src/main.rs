@@ -56,7 +56,7 @@ fn handle_client(mut stream: TcpStream) {
                                     if let Some(command) =
                                         COMMANDS.get().unwrap().get(command.to_uppercase().as_str())
                                     {
-                                        stream.write_all(&command.execute(&values)).unwrap();
+                                        stream.write_all(&command.execute(&values[1..])).unwrap();
                                     } else {
                                         write_error(&mut stream, "unknown command");
                                     }
