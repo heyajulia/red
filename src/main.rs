@@ -1,17 +1,25 @@
+use std::collections::HashMap;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 use std::str;
+use std::sync::OnceLock;
 use std::thread;
 
-use array::{Array, Value};
-use bulk_string::BulkString;
-
-use crate::array::parse;
+use crate::array::{parse, Array, Value};
+use crate::bulk_string::BulkString;
+use crate::command::Command;
+use crate::ping::Ping;
 
 mod array;
 mod bulk_string;
 mod byte_reader;
+mod command;
+mod ping;
 mod utils;
+
+type Commands = HashMap<&'static str, Box<dyn Command + Send + Sync>>;
+
+static COMMANDS: OnceLock<Commands> = OnceLock::new();
 
 fn handle_client(mut stream: TcpStream) {
     let mut buf = [0; 1024];
@@ -45,51 +53,13 @@ fn handle_client(mut stream: TcpStream) {
                                         }
                                     };
 
-                                    match command.to_uppercase().as_str() {
-                                        "PING" => {
-                                            if values.len() == 1 {
-                                                stream.write_all(b"+PONG\r\n").unwrap();
-                                            } else if values.len() == 2 {
-                                                match &values[1] {
-                                                    Value::BulkString(bs) => match bs {
-                                                        BulkString::Null => {
-                                                            write_error(
-                                                                &mut stream,
-                                                                "unexpected null bulk string",
-                                                            );
-                                                        }
-                                                        BulkString::Empty => {
-                                                            write_error(
-                                                                &mut stream,
-                                                                "unexpected empty bulk string",
-                                                            );
-                                                        }
-                                                        BulkString::Filled(argument) => {
-                                                            let mut response = vec![b'$'];
-
-                                                            response.extend(
-                                                                argument
-                                                                    .len()
-                                                                    .to_string()
-                                                                    .as_bytes(),
-                                                            );
-                                                            response.extend(b"\r\n");
-                                                            response.extend(argument);
-                                                            response.extend(b"\r\n");
-
-                                                            stream.write_all(&response).unwrap();
-                                                        }
-                                                    },
-                                                }
-                                            } else {
-                                                write_error(
-                                                    &mut stream,
-                                                    "wrong number of arguments",
-                                                );
-                                            }
-                                        }
-                                        _ => write_error(&mut stream, "unknown command"),
-                                    };
+                                    if let Some(command) =
+                                        COMMANDS.get().unwrap().get(command.to_uppercase().as_str())
+                                    {
+                                        stream.write_all(&command.execute(&values)).unwrap();
+                                    } else {
+                                        write_error(&mut stream, "unknown command");
+                                    }
                                 }
                             },
                         },
@@ -104,6 +74,14 @@ fn handle_client(mut stream: TcpStream) {
 }
 
 fn main() {
+    COMMANDS.get_or_init(|| {
+        let mut commands: Commands = HashMap::new();
+
+        commands.insert("PING", Box::new(Ping));
+
+        commands
+    });
+
     let listener = TcpListener::bind("127.0.0.1:6379").expect("failed to bind to port 6379");
 
     println!("Listening on port 6379");
