@@ -1,17 +1,20 @@
 use crate::array::Value;
+use crate::bulk_string::BulkString;
+
+pub(crate) use crate::Data;
 
 pub(crate) trait Command {
-    fn execute(&self, arguments: &[Value]) -> Response;
+    fn execute(&self, data: &mut Data, arguments: &[Value]) -> Response;
 }
 
 pub(crate) enum Response {
     SimpleString(&'static str),
     Error(&'static str),
-    BulkString(Vec<u8>),
+    BulkString(BulkString),
 }
 
 // TODO: I think TryFrom would technically be more appropriate here, because the conversion can yield semantically
-// invalid results (e.g., bulk strings larger than 512 MB), but what should we do in that case?
+// invalid results (e.g., bulk strings larger than 512 MB), but what would the calling code do in that case?
 
 impl From<Response> for Vec<u8> {
     fn from(response: Response) -> Vec<u8> {
@@ -35,10 +38,15 @@ impl From<Response> for Vec<u8> {
             Response::BulkString(b) => {
                 let mut vec = vec![b'$'];
 
-                vec.extend(b.len().to_string().as_bytes());
-                vec.extend(b"\r\n");
-                vec.extend(b);
-                vec.extend(b"\r\n");
+                match b {
+                    BulkString::Null => vec.extend(b"-1\r\n"),
+                    BulkString::Empty => vec.extend(b"0\r\n\r\n"),
+                    BulkString::Filled(bytes) => {
+                        vec.extend(format!("{}\r\n", bytes.len()).as_bytes());
+                        vec.extend(bytes);
+                        vec.extend(b"\r\n");
+                    }
+                }
 
                 vec
             }
@@ -46,5 +54,8 @@ impl From<Response> for Vec<u8> {
     }
 }
 
+pub(crate) mod get;
 pub(crate) mod ping;
+
+pub(crate) use get::Get;
 pub(crate) use ping::Ping;

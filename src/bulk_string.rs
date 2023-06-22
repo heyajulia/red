@@ -4,7 +4,7 @@ use crate::byte_reader::ByteReader;
 
 const MAX_BULK_STRING_LENGTH: isize = 512 * 1024 * 1024;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum BulkString {
     Null,
     Empty,

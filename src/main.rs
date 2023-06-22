@@ -15,8 +15,10 @@ mod byte_reader;
 mod commands;
 
 type Commands = HashMap<&'static str, Box<dyn Command + Send + Sync>>;
+pub(crate) type Data = HashMap<BulkString, BulkString>;
 
 static COMMANDS: OnceLock<Commands> = OnceLock::new();
+static mut DATA: OnceLock<Data> = OnceLock::new();
 
 fn handle_client(mut stream: TcpStream) {
     let mut buf = [0; 1024];
@@ -53,7 +55,12 @@ fn handle_client(mut stream: TcpStream) {
                                     if let Some(command) =
                                         COMMANDS.get().unwrap().get(command.to_uppercase().as_str())
                                     {
-                                        let bytes: Vec<u8> = command.execute(&values[1..]).into();
+                                        let bytes: Vec<u8> = command
+                                            .execute(
+                                                unsafe { DATA.get_mut().unwrap() }, // YOLO 🤷🏼‍♀️, but TODO: we should really make this thing single-threaded
+                                                &values[1..],
+                                            )
+                                            .into();
 
                                         stream.write_all(&bytes).unwrap();
                                     } else {
@@ -76,10 +83,24 @@ fn main() {
     COMMANDS.get_or_init(|| {
         let mut commands: Commands = HashMap::new();
 
+        commands.insert("GET", Box::new(Get));
         commands.insert("PING", Box::new(Ping));
 
         commands
     });
+
+    unsafe {
+        DATA.get_or_init(|| {
+            let mut data: Data = HashMap::new();
+
+            data.insert(
+                BulkString::Filled(b"greeting".to_vec()),
+                BulkString::Filled(b"hello, world!".to_vec()),
+            );
+
+            data
+        });
+    }
 
     let listener = TcpListener::bind("127.0.0.1:6379").expect("failed to bind to port 6379");
 
