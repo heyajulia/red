@@ -1,5 +1,6 @@
+use std::str;
+
 use crate::byte_reader::ByteReader;
-use crate::utils::{read_crlf, read_length};
 
 const MAX_BULK_STRING_LENGTH: isize = 512 * 1024 * 1024;
 
@@ -56,8 +57,7 @@ pub(crate) fn parse(reader: &mut ByteReader) -> Result<BulkString, BulkStringFor
                 return Err(BulkStringFormatError::LengthTrailer);
             }
 
-            let mut bytes = vec![0; length as usize];
-            bytes.copy_from_slice(reader.slice(length as usize));
+            let bytes = reader.slice(length as usize).to_vec();
 
             if !read_crlf(reader) {
                 return Err(BulkStringFormatError::Data);
@@ -66,6 +66,18 @@ pub(crate) fn parse(reader: &mut ByteReader) -> Result<BulkString, BulkStringFor
             Ok(BulkString::Filled(bytes))
         }
     }
+}
+
+pub(crate) fn read_length(reader: &mut ByteReader) -> Option<isize> {
+    let length_bytes = reader.read_while(|b| b != b'\r');
+
+    str::from_utf8(length_bytes)
+        .ok()
+        .and_then(|s| s.parse().ok())
+}
+
+pub(crate) fn read_crlf(reader: &mut ByteReader) -> bool {
+    reader.read_byte() == Some(b'\r') && reader.read_byte() == Some(b'\n')
 }
 
 #[cfg(test)]

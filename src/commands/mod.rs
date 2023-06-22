@@ -1,7 +1,7 @@
 use crate::array::Value;
 
 pub(crate) trait Command {
-    fn execute(&self, values: &[Value]) -> Response;
+    fn execute(&self, arguments: &[Value]) -> Response;
 }
 
 pub(crate) enum Response {

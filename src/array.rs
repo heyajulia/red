@@ -1,6 +1,5 @@
-use crate::bulk_string::{parse as parse_bulk_string, BulkString};
+use crate::bulk_string::{parse as parse_bulk_string, read_crlf, read_length, BulkString};
 use crate::byte_reader::ByteReader;
-use crate::utils::{read_crlf, read_length};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Array {

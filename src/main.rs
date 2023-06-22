@@ -13,7 +13,6 @@ mod array;
 mod bulk_string;
 mod byte_reader;
 mod commands;
-mod utils;
 
 type Commands = HashMap<&'static str, Box<dyn Command + Send + Sync>>;
 
