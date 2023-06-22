@@ -56,6 +56,8 @@ impl From<Response> for Vec<u8> {
 
 pub(crate) mod get;
 pub(crate) mod ping;
+pub(crate) mod set;
 
 pub(crate) use get::Get;
 pub(crate) use ping::Ping;
+pub(crate) use set::Set;

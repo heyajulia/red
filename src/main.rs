@@ -85,21 +85,14 @@ fn main() {
 
         commands.insert("GET", Box::new(Get));
         commands.insert("PING", Box::new(Ping));
+        commands.insert("SET", Box::new(Set));
 
         commands
     });
 
     unsafe {
-        DATA.get_or_init(|| {
-            let mut data: Data = HashMap::new();
-
-            data.insert(
-                BulkString::Filled(b"greeting".to_vec()),
-                BulkString::Filled(b"hello, world!".to_vec()),
-            );
-
-            data
-        });
+        DATA.set(HashMap::new())
+            .expect("failed to initialize data store");
     }
 
     let listener = TcpListener::bind("127.0.0.1:6379").expect("failed to bind to port 6379");
