@@ -54,6 +54,15 @@ impl From<Response> for Vec<u8> {
     }
 }
 
+pub(crate) fn get_command(command: &str) -> Option<&dyn Command> {
+    match command {
+        "GET" => Some(&Get),
+        "PING" => Some(&Ping),
+        "SET" => Some(&Set),
+        _ => None,
+    }
+}
+
 pub(crate) mod get;
 pub(crate) mod ping;
 pub(crate) mod set;

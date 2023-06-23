@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 use std::str;
-use std::sync::OnceLock;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use crate::array::{parse, Array, Value};
@@ -14,13 +14,9 @@ mod bulk_string;
 mod byte_reader;
 mod commands;
 
-type Commands = HashMap<&'static str, Box<dyn Command + Send + Sync>>;
 pub(crate) type Data = HashMap<BulkString, BulkString>;
 
-static COMMANDS: OnceLock<Commands> = OnceLock::new();
-static mut DATA: OnceLock<Data> = OnceLock::new();
-
-fn handle_client(mut stream: TcpStream) {
+fn handle_client(mut stream: TcpStream, data: Arc<Mutex<Data>>) {
     let mut buf = [0; 1024];
 
     loop {
@@ -53,14 +49,12 @@ fn handle_client(mut stream: TcpStream) {
                                     };
 
                                     if let Some(command) =
-                                        COMMANDS.get().unwrap().get(command.to_uppercase().as_str())
+                                        get_command(command.to_uppercase().as_str())
                                     {
-                                        let bytes: Vec<u8> = command
-                                            .execute(
-                                                unsafe { DATA.get_mut().unwrap() }, // YOLO 🤷🏼‍♀️, but TODO: we should really make this thing single-threaded
-                                                &values[1..],
-                                            )
-                                            .into();
+                                        let mut data = data.lock().expect("failed to acquire lock");
+
+                                        let bytes: Vec<u8> =
+                                            command.execute(&mut data, &values[1..]).into();
 
                                         stream.write_all(&bytes).unwrap();
                                     } else {
@@ -71,7 +65,7 @@ fn handle_client(mut stream: TcpStream) {
                         },
                     };
                 } else {
-                    stream.write_all(b"-ERR an error occurred\r\n").unwrap();
+                    write_error(&mut stream, "an error occurred");
                 }
             }
             Err(_) => return,
@@ -80,30 +74,18 @@ fn handle_client(mut stream: TcpStream) {
 }
 
 fn main() {
-    COMMANDS.get_or_init(|| {
-        let mut commands: Commands = HashMap::new();
-
-        commands.insert("GET", Box::new(Get));
-        commands.insert("PING", Box::new(Ping));
-        commands.insert("SET", Box::new(Set));
-
-        commands
-    });
-
-    unsafe {
-        DATA.set(HashMap::new())
-            .expect("failed to initialize data store");
-    }
-
+    let data = Arc::new(Mutex::new(HashMap::new()));
     let listener = TcpListener::bind("127.0.0.1:6379").expect("failed to bind to port 6379");
 
     println!("Listening on port 6379");
 
     for stream in listener.incoming() {
+        let data = Arc::clone(&data);
+
         match stream {
             Ok(stream) => {
                 thread::spawn(|| {
-                    handle_client(stream);
+                    handle_client(stream, data);
                 });
             }
             Err(e) => eprintln!("Error: {e}"),
