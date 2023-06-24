@@ -7,15 +7,16 @@ pub(crate) trait Command {
     fn execute(&self, data: &mut Data, arguments: &[Value]) -> Response;
 }
 
+// TODO: Change Response to a Result<... enum of variants except Error ..., String>?
 pub(crate) enum Response {
     SimpleString(&'static str),
     Error(&'static str),
     BulkString(BulkString),
+    Integer(i64),
 }
 
 // TODO: I think TryFrom would technically be more appropriate here, because the conversion can yield semantically
 // invalid results (e.g., bulk strings larger than 512 MB), but what would the calling code do in that case?
-
 impl From<Response> for Vec<u8> {
     fn from(response: Response) -> Vec<u8> {
         match response {
@@ -50,12 +51,21 @@ impl From<Response> for Vec<u8> {
 
                 vec
             }
+            Response::Integer(i) => {
+                let mut v = vec![b':'];
+
+                v.extend(i.to_string().as_bytes());
+                v.extend(b"\r\n");
+
+                v
+            }
         }
     }
 }
 
 pub(crate) fn get_command(command: &str) -> Option<&dyn Command> {
     match command {
+        "DEL" => Some(&Del),
         "GET" => Some(&Get),
         "PING" => Some(&Ping),
         "SET" => Some(&Set),
@@ -63,10 +73,12 @@ pub(crate) fn get_command(command: &str) -> Option<&dyn Command> {
     }
 }
 
+pub(crate) mod del;
 pub(crate) mod get;
 pub(crate) mod ping;
 pub(crate) mod set;
 
+pub(crate) use del::Del;
 pub(crate) use get::Get;
 pub(crate) use ping::Ping;
 pub(crate) use set::Set;
