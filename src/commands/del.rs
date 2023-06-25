@@ -20,7 +20,7 @@ impl Command for Del {
                 },
             };
 
-            if let Some(_) = data.remove(key) {
+            if data.remove(key).is_some() {
                 deleted += 1;
             }
         }
