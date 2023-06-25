@@ -1,3 +1,5 @@
+use std::str;
+
 use super::{Command, Data, Response};
 use crate::array::Value;
 use crate::bulk_string::BulkString;
@@ -35,8 +37,11 @@ impl Command for Set {
                 _ => return Response::Error("invalid argument type"),
             };
 
-            // TODO: handle this error
-            let decoded = std::str::from_utf8(arg).unwrap().to_uppercase();
+            let decoded = if let Ok(decoded) = str::from_utf8(arg) {
+                decoded.to_uppercase()
+            } else {
+                return Response::Error("invalid argument type");
+            };
 
             match decoded.as_str() {
                 "XX" => set_if_exist = true,
