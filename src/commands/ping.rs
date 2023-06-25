@@ -6,20 +6,15 @@ pub(crate) struct Ping;
 
 impl Command for Ping {
     fn execute(&self, _data: &mut Data, arguments: &[Value]) -> Response {
-        if arguments.is_empty() {
-            Response::SimpleString("PONG")
-        } else if arguments.len() == 1 {
-            match &arguments[0] {
+        match arguments.len() {
+            0 => Response::SimpleString("PONG"),
+            1 => match &arguments[0] {
                 Value::BulkString(b) => match b {
-                    BulkString::Null => Response::Error("unexpected null bulk string"),
-                    BulkString::Empty => Response::Error("unexpected empty bulk string"),
-                    BulkString::Filled(bytes) => {
-                        Response::BulkString(BulkString::Filled(bytes.clone()))
-                    }
+                    BulkString::Filled(_) => Response::BulkString(b.clone()),
+                    _ => Response::Error("invalid argument"),
                 },
-            }
-        } else {
-            Response::Error("wrong number of arguments")
+            },
+            _ => Response::Error("wrong number of arguments"),
         }
     }
 }

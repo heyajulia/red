@@ -6,7 +6,7 @@ pub(crate) struct Del;
 
 impl Command for Del {
     fn execute(&self, data: &mut Data, arguments: &[Value]) -> Response {
-        if arguments.len() < 1 {
+        if arguments.is_empty() {
             return Response::Error("wrong number of arguments");
         }
 
