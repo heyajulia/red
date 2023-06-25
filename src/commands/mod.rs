@@ -8,6 +8,7 @@ pub(crate) trait Command {
 }
 
 // TODO: Change Response to a Result<... enum of variants except Error ..., String>?
+#[derive(Eq, PartialEq, Debug)]
 pub(crate) enum Response {
     SimpleString(&'static str),
     Error(&'static str),
