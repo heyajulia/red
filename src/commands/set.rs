@@ -18,6 +18,49 @@ enum GetOption {
     Get,
 }
 
+fn parse_options(options: &[Value]) -> Result<(SetOption, GetOption), Response> {
+    let mut set_option = SetOption::NotSpecified;
+    let mut get_option = GetOption::NotSpecified;
+
+    for option in options {
+        let opt = match option {
+            Value::BulkString(BulkString::Filled(b)) => b,
+            _ => return Err(Response::Error("invalid argument type")),
+        };
+
+        let decoded = str::from_utf8(opt)
+            .map_err(|_| Response::Error("invalid argument type"))?
+            .to_uppercase();
+
+        match decoded.as_str() {
+            "XX" => {
+                set_option = if set_option == SetOption::NotSpecified {
+                    SetOption::IfExists
+                } else {
+                    return Err(Response::Error(
+                        "'XX' and 'NX' can't be used at the same time",
+                    ));
+                }
+            }
+            "NX" => {
+                set_option = if set_option == SetOption::NotSpecified {
+                    SetOption::IfNotExists
+                } else {
+                    return Err(Response::Error(
+                        "'XX' and 'NX' can't be used at the same time",
+                    ));
+                }
+            }
+            "GET" => get_option = GetOption::Get,
+            // TODO: It would be nice to be able to use non-static strings in errors, so we could do:
+            // Err(Response::Error(format!("'{decoded}' is not a valid option"))),
+            _ => return Err(Response::Error("invalid option")),
+        };
+    }
+
+    Ok((set_option, get_option))
+}
+
 impl Command for Set {
     fn execute(&self, data: &mut Data, arguments: &[Value]) -> Response {
         if !(2..=4).contains(&arguments.len()) {
@@ -39,42 +82,16 @@ impl Command for Set {
         };
 
         // TODO: Implement more options: https://redis.io/commands/set.
-        let mut set_option = SetOption::NotSpecified;
-        let mut get_option = GetOption::NotSpecified;
+        let set_option;
+        let get_option;
 
-        for argument in &arguments[2..] {
-            let arg = match argument {
-                Value::BulkString(BulkString::Filled(b)) => b,
-                _ => return Response::Error("invalid argument type"),
-            };
-
-            let decoded = if let Ok(decoded) = str::from_utf8(arg) {
-                decoded.to_uppercase()
-            } else {
-                return Response::Error("invalid argument type");
-            };
-
-            match decoded.as_str() {
-                "XX" => {
-                    set_option = if set_option == SetOption::NotSpecified {
-                        SetOption::IfExists
-                    } else {
-                        return Response::Error("'XX' and 'NX' can't be used at the same time");
-                    }
-                }
-                "NX" => {
-                    set_option = if set_option == SetOption::NotSpecified {
-                        SetOption::IfNotExists
-                    } else {
-                        return Response::Error("'XX' and 'NX' can't be used at the same time");
-                    }
-                }
-                "GET" => get_option = GetOption::Get,
-                // TODO: It would be nice to be able to use non-static strings in errors, so we could do:
-                // _ => return Response::Error(format!("'{decoded}' is not a valid option")),
-                _ => return Response::Error("invalid option"),
-            };
-        }
+        match parse_options(&arguments[2..]) {
+            Ok((s, g)) => {
+                set_option = s;
+                get_option = g;
+            }
+            Err(e) => return e,
+        };
 
         match (set_option, get_option) {
             (SetOption::NotSpecified, GetOption::NotSpecified) => {
