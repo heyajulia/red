@@ -137,31 +137,34 @@ impl Command for Set {
 mod tests {
     use super::*;
 
+    macro_rules! bulk_string {
+        (null) => {
+            BulkString::Null
+        };
+        ($value:expr) => {
+            BulkString::Filled(<[u8]>::to_vec($value.as_bytes()))
+        };
+    }
+
+    macro_rules! arguments {
+        ($($value:expr),*) => {
+            &[$(Value::BulkString(bulk_string!($value))),*]
+        };
+    }
+
     #[test]
     fn no_options() {
         let mut data = Data::new();
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value".to_vec())),
-        ];
-
-        let response = Set.execute(&mut data, &arguments);
+        let response = Set.execute(&mut data, arguments!["key", "value"]);
 
         assert!(matches!(response, Response::SimpleString("OK")));
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value2".to_vec())),
-        ];
-
-        let response = Set.execute(&mut data, &arguments);
+        let response = Set.execute(&mut data, arguments!["key", "value2"]);
 
         assert_eq!(
-            BulkString::Filled(b"value2".to_vec()),
-            data.get(&BulkString::Filled(b"key".to_vec()))
-                .cloned()
-                .unwrap()
+            bulk_string!("value2"),
+            data.get(&bulk_string!("key")).cloned().unwrap()
         );
 
         assert!(matches!(response, Response::SimpleString("OK")));
@@ -171,37 +174,22 @@ mod tests {
     fn xx_not_met() {
         let mut data = Data::new();
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value".to_vec())),
-            Value::BulkString(BulkString::Filled(b"XX".to_vec())),
-        ];
+        let response = Set.execute(&mut data, arguments!["key", "value", "XX"]);
 
-        let response = Set.execute(&mut data, &arguments);
+        assert!(data.is_empty());
 
-        assert!(matches!(response, Response::BulkString(BulkString::Null)));
+        assert!(matches!(response, Response::BulkString(bulk_string!(null))));
     }
 
     #[test]
     fn xx_met() {
-        let mut data = Data::from([(
-            BulkString::Filled(b"key".to_vec()),
-            BulkString::Filled(b"value".to_vec()),
-        )]);
+        let mut data = Data::from([(bulk_string!("key"), bulk_string!("value"))]);
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value2".to_vec())),
-            Value::BulkString(BulkString::Filled(b"XX".to_vec())),
-        ];
-
-        let response = Set.execute(&mut data, &arguments);
+        let response = Set.execute(&mut data, arguments!["key", "value2", "XX"]);
 
         assert_eq!(
-            BulkString::Filled(b"value2".to_vec()),
-            data.get(&BulkString::Filled(b"key".to_vec()))
-                .cloned()
-                .unwrap()
+            bulk_string!("value2"),
+            data.get(&bulk_string!("key")).cloned().unwrap()
         );
 
         assert!(matches!(response, Response::SimpleString("OK")));
@@ -209,60 +197,33 @@ mod tests {
 
     #[test]
     fn nx_not_met() {
-        let mut data = Data::new();
+        let mut data = Data::from([(bulk_string!("key"), bulk_string!("value"))]);
 
-        data.insert(
-            BulkString::Filled(b"key".to_vec()),
-            BulkString::Filled(b"value".to_vec()),
-        );
-
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value2".to_vec())),
-            Value::BulkString(BulkString::Filled(b"NX".to_vec())),
-        ];
-
-        let response = Set.execute(&mut data, &arguments);
+        let response = Set.execute(&mut data, arguments!["key", "value2", "NX"]);
 
         assert_eq!(
-            BulkString::Filled(b"value".to_vec()),
-            data.get(&BulkString::Filled(b"key".to_vec()))
-                .cloned()
-                .unwrap()
+            bulk_string!("value"),
+            data.get(&bulk_string!("key")).cloned().unwrap()
         );
 
-        assert!(matches!(response, Response::BulkString(BulkString::Null)));
+        assert!(matches!(response, Response::BulkString(bulk_string!(null))));
     }
 
     #[test]
     fn nx_met() {
         let mut data = Data::new();
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value".to_vec())),
-            Value::BulkString(BulkString::Filled(b"NX".to_vec())),
-        ];
-
-        let response = Set.execute(&mut data, &arguments);
+        let response = Set.execute(&mut data, arguments!["key", "value", "NX"]);
 
         assert!(matches!(response, Response::SimpleString("OK")));
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value2".to_vec())),
-            Value::BulkString(BulkString::Filled(b"NX".to_vec())),
-        ];
+        let response = Set.execute(&mut data, arguments!["key", "value2", "NX"]);
 
-        let response = Set.execute(&mut data, &arguments);
-
-        assert!(matches!(response, Response::BulkString(BulkString::Null)));
+        assert!(matches!(response, Response::BulkString(bulk_string!(null))));
 
         assert_eq!(
-            BulkString::Filled(b"value".to_vec()),
-            data.get(&BulkString::Filled(b"key".to_vec()))
-                .cloned()
-                .unwrap()
+            bulk_string!("value"),
+            data.get(&bulk_string!("key")).cloned().unwrap()
         );
     }
 
@@ -270,127 +231,60 @@ mod tests {
     fn get() {
         let mut data = Data::new();
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value".to_vec())),
-            Value::BulkString(BulkString::Filled(b"GET".to_vec())),
-        ];
+        let response = Set.execute(&mut data, arguments!["key", "value", "GET"]);
 
-        let response = Set.execute(&mut data, &arguments);
+        assert!(matches!(response, Response::BulkString(bulk_string!(null))));
 
-        assert!(matches!(response, Response::BulkString(BulkString::Null)));
+        let response = Set.execute(&mut data, arguments!["key", "value2", "GET"]);
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value2".to_vec())),
-            Value::BulkString(BulkString::Filled(b"GET".to_vec())),
-        ];
-
-        let response = Set.execute(&mut data, &arguments);
-
-        assert_eq!(
-            response,
-            Response::BulkString(BulkString::Filled(b"value".to_vec()))
-        );
+        assert_eq!(response, Response::BulkString(bulk_string!("value")));
     }
 
     #[test]
     fn xx_get_not_met() {
         let mut data = Data::new();
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value".to_vec())),
-            Value::BulkString(BulkString::Filled(b"XX".to_vec())),
-            Value::BulkString(BulkString::Filled(b"GET".to_vec())),
-        ];
+        let response = Set.execute(&mut data, arguments!["key", "value", "XX", "GET"]);
 
-        let response = Set.execute(&mut data, &arguments);
+        assert!(matches!(response, Response::BulkString(bulk_string!(null))));
 
-        assert!(matches!(response, Response::BulkString(BulkString::Null)));
+        data.insert(bulk_string!("key"), bulk_string!("value"));
 
-        data.insert(
-            BulkString::Filled(b"key".to_vec()),
-            BulkString::Filled(b"value".to_vec()),
-        );
+        let response = Set.execute(&mut data, arguments!["key", "value2", "XX", "GET"]);
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value2".to_vec())),
-            Value::BulkString(BulkString::Filled(b"XX".to_vec())),
-            Value::BulkString(BulkString::Filled(b"GET".to_vec())),
-        ];
-
-        let response = Set.execute(&mut data, &arguments);
+        assert_eq!(response, Response::BulkString(bulk_string!("value")));
 
         assert_eq!(
-            response,
-            Response::BulkString(BulkString::Filled(b"value".to_vec()))
-        );
-
-        assert_eq!(
-            BulkString::Filled(b"value2".to_vec()),
-            data.get(&BulkString::Filled(b"key".to_vec()))
-                .cloned()
-                .unwrap()
+            bulk_string!("value2"),
+            data.get(&bulk_string!("key")).cloned().unwrap()
         );
     }
 
     #[test]
     fn xx_get_met() {
-        let mut data = Data::from([(
-            BulkString::Filled(b"key".to_vec()),
-            BulkString::Filled(b"value".to_vec()),
-        )]);
+        let mut data = Data::from([(bulk_string!("key"), bulk_string!("value"))]);
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value2".to_vec())),
-            Value::BulkString(BulkString::Filled(b"XX".to_vec())),
-            Value::BulkString(BulkString::Filled(b"GET".to_vec())),
-        ];
+        let response = Set.execute(&mut data, arguments!["key", "value2", "XX", "GET"]);
 
-        let response = Set.execute(&mut data, &arguments);
+        assert_eq!(Response::BulkString(bulk_string!("value")), response);
 
         assert_eq!(
-            Response::BulkString(BulkString::Filled(b"value".to_vec())),
-            response
-        );
-
-        assert_eq!(
-            BulkString::Filled(b"value2".to_vec()),
-            data.get(&BulkString::Filled(b"key".to_vec()))
-                .cloned()
-                .unwrap()
+            bulk_string!("value2"),
+            data.get(&bulk_string!("key")).cloned().unwrap()
         );
     }
 
     #[test]
     fn nx_get_not_met() {
-        let mut data = Data::from([(
-            BulkString::Filled(b"key".to_vec()),
-            BulkString::Filled(b"value".to_vec()),
-        )]);
+        let mut data = Data::from([(bulk_string!("key"), bulk_string!("value"))]);
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value2".to_vec())),
-            Value::BulkString(BulkString::Filled(b"NX".to_vec())),
-            Value::BulkString(BulkString::Filled(b"GET".to_vec())),
-        ];
+        let response = Set.execute(&mut data, arguments!["key", "value2", "NX", "GET"]);
 
-        let response = Set.execute(&mut data, &arguments);
+        assert_eq!(Response::BulkString(bulk_string!("value")), response);
 
         assert_eq!(
-            Response::BulkString(BulkString::Filled(b"value".to_vec())),
-            response
-        );
-
-        assert_eq!(
-            BulkString::Filled(b"value".to_vec()),
-            data.get(&BulkString::Filled(b"key".to_vec()))
-                .cloned()
-                .unwrap()
+            bulk_string!("value"),
+            data.get(&bulk_string!("key")).cloned().unwrap()
         );
     }
 
@@ -398,41 +292,17 @@ mod tests {
     fn nx_get_met() {
         let mut data = Data::new();
 
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value".to_vec())),
-            Value::BulkString(BulkString::Filled(b"NX".to_vec())),
-            Value::BulkString(BulkString::Filled(b"GET".to_vec())),
-        ];
+        let response = Set.execute(&mut data, arguments!["key", "value", "NX", "GET"]);
 
-        let response = Set.execute(&mut data, &arguments);
+        assert_eq!(Response::BulkString(bulk_string!(null)), response);
 
-        assert_eq!(Response::BulkString(BulkString::Null), response);
+        let response = Set.execute(&mut data, arguments!["key", "value2", "NX", "GET"]);
 
-        data.insert(
-            BulkString::Filled(b"key".to_vec()),
-            BulkString::Filled(b"value".to_vec()),
-        );
-
-        let arguments = [
-            Value::BulkString(BulkString::Filled(b"key".to_vec())),
-            Value::BulkString(BulkString::Filled(b"value2".to_vec())),
-            Value::BulkString(BulkString::Filled(b"NX".to_vec())),
-            Value::BulkString(BulkString::Filled(b"GET".to_vec())),
-        ];
-
-        let response = Set.execute(&mut data, &arguments);
+        assert_eq!(Response::BulkString(bulk_string!("value")), response);
 
         assert_eq!(
-            Response::BulkString(BulkString::Filled(b"value".to_vec())),
-            response
-        );
-
-        assert_eq!(
-            BulkString::Filled(b"value".to_vec()),
-            data.get(&BulkString::Filled(b"key".to_vec()))
-                .cloned()
-                .unwrap()
+            bulk_string!("value"),
+            data.get(&bulk_string!("key")).cloned().unwrap()
         );
     }
 }
