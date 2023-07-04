@@ -81,7 +81,6 @@ impl Command for Set {
             },
         };
 
-        // TODO: Implement more options: https://redis.io/commands/set.
         let set_option;
         let get_option;
 
