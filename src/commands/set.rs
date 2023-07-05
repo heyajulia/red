@@ -67,19 +67,8 @@ impl Command for Set {
             return Response::Error("wrong number of arguments");
         }
 
-        let key = match &arguments[0] {
-            Value::BulkString(b) => match b {
-                BulkString::Filled(_) => b,
-                _ => return Response::Error("invalid argument #1"),
-            },
-        };
-
-        let value = match &arguments[1] {
-            Value::BulkString(b) => match b {
-                BulkString::Filled(_) => b,
-                _ => return Response::Error("invalid argument #2"),
-            },
-        };
+        let key = bulk_string_or_error!(&arguments[0], "invalid argument #1");
+        let value = bulk_string_or_error!(&arguments[1], "invalid argument #2");
 
         let set_option;
         let get_option;

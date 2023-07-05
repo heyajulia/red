@@ -10,12 +10,7 @@ impl Command for Get {
             return Response::Error("wrong number of arguments");
         }
 
-        let key = match &arguments[0] {
-            Value::BulkString(b) => match b {
-                BulkString::Filled(_) => b,
-                _ => return Response::Error("invalid argument"),
-            },
-        };
+        let key = bulk_string_or_error!(&arguments[0]);
 
         match data.get(key) {
             Some(value) => Response::BulkString(value.clone()),

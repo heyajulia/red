@@ -13,12 +13,7 @@ impl Command for Del {
         let mut deleted = 0;
 
         for argument in arguments {
-            let key = match argument {
-                Value::BulkString(b) => match b {
-                    BulkString::Filled(_) => b,
-                    _ => return Response::Error("invalid argument"),
-                },
-            };
+            let key = bulk_string_or_error!(argument);
 
             if data.remove(key).is_some() {
                 deleted += 1;

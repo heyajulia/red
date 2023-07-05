@@ -74,6 +74,20 @@ pub(crate) fn get_command(command: &str) -> Option<&dyn Command> {
     }
 }
 
+macro_rules! bulk_string_or_error {
+    ($argument:expr) => {
+        bulk_string_or_error!($argument, "invalid argument")
+    };
+    ($argument:expr, $error:expr) => {
+        match $argument {
+            Value::BulkString(b) => match b {
+                BulkString::Filled(_) => b,
+                _ => return Response::Error($error),
+            },
+        }
+    };
+}
+
 pub(crate) mod del;
 pub(crate) mod get;
 pub(crate) mod ping;
