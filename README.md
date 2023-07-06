@@ -36,6 +36,12 @@ Currently implemented commands:
 
 The server is single-threaded and handles commands sequentially. Data is stored in memory in a `HashMap`.
 
+## Performance
+
+Performance is not a goal of this project, but it's still interesting to see how it compares to Redis. In my very
+unscientific tests, Red is ... on par with Redis! Setting, getting and deleting 100,000 keys takes using the script that
+I wrote seems to take about 16.65 seconds for both Redis and Red, though it's possible that I'm doing something wrong.
+
 ## 👩🏼‍⚖️ Legal stuff
 
 Red is licensed under the [0-clause BSD license](LICENSE).
