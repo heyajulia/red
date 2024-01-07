@@ -8,12 +8,11 @@ impl Command for Ping {
     fn execute(&self, _data: &mut Data, arguments: &[Value]) -> Response {
         match arguments.len() {
             0 => Response::SimpleString("PONG"),
-            1 => match &arguments[0] {
-                Value::BulkString(b) => match b {
-                    BulkString::Filled(_) => Response::BulkString(b.clone()),
-                    _ => Response::Error("invalid argument"),
-                },
-            },
+            1 => {
+                let bs = bulk_string_or_error!(&arguments[0]);
+
+                Response::BulkString(bs.clone())
+            }
             _ => Response::Error("wrong number of arguments"),
         }
     }
