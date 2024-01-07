@@ -36,7 +36,7 @@ Currently implemented commands:
 
 The server is single-threaded and handles commands sequentially. Data is stored in memory in a `HashMap`.
 
-## Performance
+## ⚡ Performance
 
 Performance is not a goal of this project, but it's still interesting to see how it compares to Redis. In my very
 unscientific tests, Red is ... on par with Redis! Setting, getting and deleting 100,000 keys takes using the script that
