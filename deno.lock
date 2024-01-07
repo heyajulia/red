@@ -1,10 +1,12 @@
 {
-  "version": "2",
+  "version": "3",
   "remote": {
     "https://esm.sh/v128/@redis/client@1.5.8": "44d57ff19e4745566f6a16cf72586f45bf1bcd4928800075bc87f984dbefbfb3",
     "https://esm.sh/v128/@redis/client@1.5.8/denonext/client.mjs": "865d2f1c2ed962fe6a75c2392b1c29871a21e24aaecffba038e9061638d2c6db",
     "https://esm.sh/v128/cluster-key-slot@1.1.2/denonext/cluster-key-slot.mjs": "3d7c011bacf7e1536edcaba4f7ab5b3b819267db114738fe1535fff6988c5916",
     "https://esm.sh/v128/generic-pool@3.9.0/denonext/generic-pool.mjs": "9c8d28bdc12aaa4a5968e5ebc16f8ce9924deaac7123f557e89091ef439486af",
+    "https://esm.sh/v128/lodash-es@4.17.21": "371126b0b934e9f87ba4018368f7f78404c685c7f64744e1c6bbfc7a4623d185",
+    "https://esm.sh/v128/lodash-es@4.17.21/denonext/lodash-es.mjs": "07204dd6f06e6b746db568246228196dcc1e2d1566b6e9868310a3995db3d0ef",
     "https://esm.sh/v128/randombytes@2.0.3/denonext/randombytes.mjs": "169b0146de83ff69a6ee42d51e2426e2e84c46fc77c24a82cb9acead6714ba8c",
     "https://esm.sh/v128/randomstring@1.3.0": "bdb6b3057acda217dfd0c0305976f96b75bc33c4d7dff5e371dd27d87fd707d3",
     "https://esm.sh/v128/randomstring@1.3.0/denonext/randomstring.mjs": "577b82c43a8d1856c2cd125ea8236f71f742bf55289dbb559fdc08bce4ed1225",
