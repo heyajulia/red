@@ -1,5 +1,5 @@
 pub(crate) struct ByteReader<'a> {
-    pub(crate) data: &'a [u8],
+    data: &'a [u8],
     offset: usize,
 }
 
