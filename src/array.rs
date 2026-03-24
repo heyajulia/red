@@ -109,31 +109,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn parse_three_integers_array() {
-        todo!()
-    }
-
-    #[test]
-    #[ignore]
-    fn parse_four_integers_and_a_bulk_string_array() {
-        todo!()
-    }
-
-    #[test]
     fn parse_null_array() {
         assert_eq!(Ok(Array::Null), parse(b"*-1\r\n"));
     }
 
-    #[test]
-    #[ignore]
-    fn parse_nested_array() {
-        todo!()
-    }
-
-    #[test]
-    #[ignore]
-    fn parse_null_elements_in_array() {
-        todo!()
-    }
 }
