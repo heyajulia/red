@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{self, prelude::*};
+use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::str;
 use std::sync::{Arc, Mutex};
@@ -15,26 +15,73 @@ mod commands;
 
 pub(crate) type Data = HashMap<BulkString, BulkString>;
 
-fn handle_client(mut stream: TcpStream, data: Arc<Mutex<Data>>) {
-    let mut buf = [0; 1024];
+fn read_frame(reader: &mut BufReader<TcpStream>) -> io::Result<Vec<u8>> {
+    let mut frame = Vec::new();
+
+    // Read the array header line (*N\r\n)
+    let mut line = String::new();
+    if reader.read_line(&mut line)? == 0 {
+        return Err(io::ErrorKind::UnexpectedEof.into());
+    }
+    frame.extend(line.as_bytes());
+
+    let count: isize = line
+        .trim_end_matches("\r\n")
+        .strip_prefix('*')
+        .and_then(|s| s.parse().ok())
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "invalid array header"))?;
+
+    if count <= 0 {
+        return Ok(frame);
+    }
+
+    for _ in 0..count {
+        // Read the bulk string header ($N\r\n)
+        let mut line = String::new();
+        if reader.read_line(&mut line)? == 0 {
+            return Err(io::ErrorKind::UnexpectedEof.into());
+        }
+        frame.extend(line.as_bytes());
+
+        let length: isize = line
+            .trim_end_matches("\r\n")
+            .strip_prefix('$')
+            .and_then(|s| s.parse().ok())
+            .ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "invalid bulk string header")
+            })?;
+
+        if length < 0 {
+            continue;
+        }
+
+        // Read exactly length bytes + \r\n
+        let total = length as usize + 2;
+        let start = frame.len();
+        frame.resize(start + total, 0);
+        reader.read_exact(&mut frame[start..])?;
+    }
+
+    Ok(frame)
+}
+
+fn handle_client(stream: TcpStream, data: Arc<Mutex<Data>>) {
+    let mut writer = stream.try_clone().expect("failed to clone stream");
+    let mut reader = BufReader::new(stream);
 
     loop {
-        match stream.read(&mut buf) {
-            Ok(0) | Err(_) => return,
-            Ok(n) => {
-                if let Err(_) = handle_request(&mut stream, &data, &buf[..n]) {
-                    return;
-                }
-            }
+        let frame = match read_frame(&mut reader) {
+            Ok(frame) => frame,
+            Err(_) => return,
+        };
+
+        if let Err(_) = handle_request(&mut writer, &data, &frame) {
+            return;
         }
     }
 }
 
-fn handle_request(
-    stream: &mut TcpStream,
-    data: &Mutex<Data>,
-    buf: &[u8],
-) -> io::Result<()> {
+fn handle_request(stream: &mut TcpStream, data: &Mutex<Data>, buf: &[u8]) -> io::Result<()> {
     let result = match parse(buf) {
         Ok(result) => result,
         Err(_) => return write_error(stream, "an error occurred"),
