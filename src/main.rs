@@ -63,6 +63,12 @@ fn handle_command(
     };
 
     let command_upper = command_str.to_uppercase();
+
+    if command_upper == "QUIT" {
+        stream.write_all(b"+OK\r\n")?;
+        return Err(io::Error::from(io::ErrorKind::ConnectionAborted));
+    }
+
     let command = match get_command(command_upper.as_str()) {
         Some(cmd) => cmd,
         None => return write_error(stream, "unknown command"),
