@@ -1,10 +1,14 @@
 use std::str;
 
-use super::{Command, Data, Response};
+use super::{Command, CommandEntry, Data, Response};
 use crate::array::Value;
 use crate::bulk_string::BulkString;
 
-pub(crate) struct Set;
+struct Set;
+
+inventory::submit! {
+    CommandEntry { name: "SET", command: &Set }
+}
 
 #[derive(PartialEq)]
 enum SetOption {

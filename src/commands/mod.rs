@@ -5,9 +5,16 @@ use crate::bulk_string::BulkString;
 
 pub(crate) use crate::Data;
 
-pub(crate) trait Command {
+pub(crate) trait Command: Send + Sync {
     fn execute(&self, data: &mut Data, arguments: &[Value]) -> Response;
 }
+
+pub(crate) struct CommandEntry {
+    pub name: &'static str,
+    pub command: &'static dyn Command,
+}
+
+inventory::collect!(CommandEntry);
 
 // TODO: Change Response to a Result<... enum of variants except Error ..., String>?
 #[derive(Eq, PartialEq, Debug)]
@@ -66,14 +73,11 @@ impl From<Response> for Vec<u8> {
     }
 }
 
-pub(crate) fn get_command(command: &str) -> Option<&dyn Command> {
-    match command {
-        "DEL" => Some(&Del),
-        "GET" => Some(&Get),
-        "PING" => Some(&Ping),
-        "SET" => Some(&Set),
-        _ => None,
-    }
+pub(crate) fn get_command(name: &str) -> Option<&'static dyn Command> {
+    inventory::iter::<CommandEntry>
+        .into_iter()
+        .find(|entry| entry.name == name)
+        .map(|entry| entry.command)
 }
 
 macro_rules! bulk_string_or_error {
@@ -90,15 +94,10 @@ macro_rules! bulk_string_or_error {
     };
 }
 
-pub(crate) mod del;
-pub(crate) mod get;
-pub(crate) mod ping;
-pub(crate) mod set;
-
-pub(crate) use del::Del;
-pub(crate) use get::Get;
-pub(crate) use ping::Ping;
-pub(crate) use set::Set;
+mod del;
+mod get;
+mod ping;
+mod set;
 
 #[cfg(test)]
 mod tests {

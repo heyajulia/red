@@ -1,8 +1,12 @@
-use super::{Command, Data, Response};
+use super::{Command, CommandEntry, Data, Response};
 use crate::array::Value;
 use crate::bulk_string::BulkString;
 
-pub(crate) struct Del;
+struct Del;
+
+inventory::submit! {
+    CommandEntry { name: "DEL", command: &Del }
+}
 
 impl Command for Del {
     fn execute(&self, data: &mut Data, arguments: &[Value]) -> Response {

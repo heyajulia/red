@@ -1,8 +1,12 @@
-use super::{Command, Data, Response};
+use super::{Command, CommandEntry, Data, Response};
 use crate::array::Value;
 use crate::bulk_string::BulkString;
 
-pub(crate) struct Get;
+struct Get;
+
+inventory::submit! {
+    CommandEntry { name: "GET", command: &Get }
+}
 
 impl Command for Get {
     fn execute(&self, data: &mut Data, arguments: &[Value]) -> Response {

@@ -1,8 +1,12 @@
-use super::{Command, Data, Response};
+use super::{Command, CommandEntry, Data, Response};
 use crate::array::Value;
 use crate::bulk_string::BulkString;
 
-pub(crate) struct Ping;
+struct Ping;
+
+inventory::submit! {
+    CommandEntry { name: "PING", command: &Ping }
+}
 
 impl Command for Ping {
     fn execute(&self, _data: &mut Data, arguments: &[Value]) -> Response {
