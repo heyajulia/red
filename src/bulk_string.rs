@@ -57,7 +57,12 @@ pub(crate) fn parse(reader: &mut Bytes) -> Result<BulkString, BulkStringFormatEr
                 return Err(BulkStringFormatError::LengthTrailer);
             }
 
-            let bytes = reader.copy_to_bytes(length as usize).to_vec();
+            let length = length as usize;
+            if length > reader.remaining() {
+                return Err(BulkStringFormatError::Data);
+            }
+
+            let bytes = reader.copy_to_bytes(length).to_vec();
 
             if !read_crlf(reader) {
                 return Err(BulkStringFormatError::Data);
