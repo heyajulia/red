@@ -75,19 +75,35 @@ fn read_frame(reader: &mut BufReader<TcpStream>) -> io::Result<Vec<u8>> {
 }
 
 fn handle_client(stream: TcpStream, data: Arc<Mutex<Data>>) {
+    let peer = stream
+        .peer_addr()
+        .map(|a| a.to_string())
+        .unwrap_or_else(|_| "unknown".into());
+    eprintln!("Client connected: {peer}");
+
     let mut writer = stream.try_clone().expect("failed to clone stream");
     let mut reader = BufReader::new(stream);
 
     loop {
         let frame = match read_frame(&mut reader) {
             Ok(frame) => frame,
-            Err(_) => return,
+            Err(e) => {
+                if e.kind() != io::ErrorKind::UnexpectedEof {
+                    eprintln!("Client {peer}: read error: {e}");
+                }
+                break;
+            }
         };
 
-        if let Err(_) = handle_request(&mut writer, &data, &frame) {
-            return;
+        if let Err(e) = handle_request(&mut writer, &data, &frame) {
+            if e.kind() != io::ErrorKind::ConnectionAborted {
+                eprintln!("Client {peer}: write error: {e}");
+            }
+            break;
         }
     }
+
+    eprintln!("Client disconnected: {peer}");
 }
 
 fn handle_request(stream: &mut TcpStream, data: &Mutex<Data>, buf: &[u8]) -> io::Result<()> {
