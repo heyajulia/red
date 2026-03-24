@@ -1,6 +1,9 @@
 use bytes::{Buf, Bytes};
 
-use crate::bulk_string::{parse as parse_bulk_string, read_byte, read_crlf, read_length, BulkString};
+use crate::bulk_string::{
+    parse as parse_bulk_string, read_byte, read_crlf, read_length, BulkString,
+    BulkStringFormatError,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Array {
@@ -21,13 +24,14 @@ pub(crate) enum ArrayFormatError {
     Length,
     Data,
     LengthTrailer,
+    BulkString(BulkStringFormatError),
 }
 
 fn parse_value(reader: &mut Bytes) -> Result<Value, ArrayFormatError> {
     match reader.chunk().first() {
         Some(b'$') => match parse_bulk_string(reader) {
             Ok(bulk_string) => Ok(Value::BulkString(bulk_string)),
-            Err(_) => Err(ArrayFormatError::Data),
+            Err(e) => Err(ArrayFormatError::BulkString(e)),
         },
         _ => Err(ArrayFormatError::Data),
     }
@@ -133,9 +137,9 @@ mod tests {
 
     #[test]
     fn truncated_element() {
-        assert_eq!(
-            Err(ArrayFormatError::Data),
-            parse(b"*1\r\n$10\r\nhi\r\n")
-        );
+        assert!(matches!(
+            parse(b"*1\r\n$10\r\nhi\r\n"),
+            Err(ArrayFormatError::BulkString(_))
+        ));
     }
 }
