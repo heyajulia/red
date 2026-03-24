@@ -5,6 +5,8 @@ use std::str;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use tracing::{debug, error, info, warn};
+
 use crate::array::{parse, Array, Value};
 use crate::bulk_string::BulkString;
 use crate::commands::*;
@@ -79,7 +81,7 @@ fn handle_client(stream: TcpStream, data: Arc<Mutex<Data>>) {
         .peer_addr()
         .map(|a| a.to_string())
         .unwrap_or_else(|_| "unknown".into());
-    eprintln!("Client connected: {peer}");
+    info!(peer = %peer, "Client connected");
 
     let mut writer = stream.try_clone().expect("failed to clone stream");
     let mut reader = BufReader::new(stream);
@@ -89,7 +91,7 @@ fn handle_client(stream: TcpStream, data: Arc<Mutex<Data>>) {
             Ok(frame) => frame,
             Err(e) => {
                 if e.kind() != io::ErrorKind::UnexpectedEof {
-                    eprintln!("Client {peer}: read error: {e}");
+                    warn!(peer = %peer, error = %e, "Read error");
                 }
                 break;
             }
@@ -97,13 +99,13 @@ fn handle_client(stream: TcpStream, data: Arc<Mutex<Data>>) {
 
         if let Err(e) = handle_request(&mut writer, &data, &frame) {
             if e.kind() != io::ErrorKind::ConnectionAborted {
-                eprintln!("Client {peer}: write error: {e}");
+                warn!(peer = %peer, error = %e, "Write error");
             }
             break;
         }
     }
 
-    eprintln!("Client disconnected: {peer}");
+    info!(peer = %peer, "Client disconnected");
 }
 
 fn handle_request(stream: &mut TcpStream, data: &Mutex<Data>, buf: &[u8]) -> io::Result<()> {
@@ -136,6 +138,8 @@ fn handle_command(
 
     let command_upper = command_str.to_uppercase();
 
+    debug!(command = %command_upper, args = values.len() - 1, "Executing");
+
     if command_upper == "QUIT" {
         stream.write_all(b"+OK\r\n")?;
         return Err(io::Error::from(io::ErrorKind::ConnectionAborted));
@@ -161,16 +165,18 @@ fn serve(listener: TcpListener, data: Arc<Mutex<Data>>) {
                     handle_client(stream, data);
                 });
             }
-            Err(e) => eprintln!("Error: {e}"),
+            Err(e) => error!(error = %e, "Failed to accept connection"),
         }
     }
 }
 
 fn main() {
+    tracing_subscriber::fmt::init();
+
     let data = Arc::new(Mutex::new(HashMap::new()));
     let listener = TcpListener::bind("127.0.0.1:6379").expect("failed to bind to port 6379");
 
-    println!("Listening on port 6379");
+    info!(port = 6379, "Listening");
 
     serve(listener, data);
 }
