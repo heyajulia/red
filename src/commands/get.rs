@@ -7,7 +7,7 @@ pub(crate) struct Get;
 impl Command for Get {
     fn execute(&self, data: &mut Data, arguments: &[Value]) -> Response {
         if arguments.len() != 1 {
-            return Response::Error("wrong number of arguments");
+            return Response::Error("wrong number of arguments".into());
         }
 
         let key = bulk_string_or_error!(&arguments[0]);

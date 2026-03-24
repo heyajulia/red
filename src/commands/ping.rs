@@ -13,7 +13,7 @@ impl Command for Ping {
 
                 Response::BulkString(bs.clone())
             }
-            _ => Response::Error("wrong number of arguments"),
+            _ => Response::Error("wrong number of arguments".into()),
         }
     }
 }

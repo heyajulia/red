@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::array::Value;
 use crate::bulk_string::BulkString;
 
@@ -11,7 +13,7 @@ pub(crate) trait Command {
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum Response {
     SimpleString(&'static str),
-    Error(&'static str),
+    Error(Cow<'static, str>),
     BulkString(BulkString),
     Integer(i64),
 }
@@ -29,7 +31,7 @@ impl From<Response> for Vec<u8> {
 
                 vec
             }
-            Response::Error(e) => {
+            Response::Error(ref e) => {
                 let mut vec = vec![b'-'];
 
                 vec.extend(e.as_bytes());
@@ -82,7 +84,7 @@ macro_rules! bulk_string_or_error {
         match $argument {
             Value::BulkString(b) => match b {
                 BulkString::Filled(_) => b,
-                _ => return Response::Error($error),
+                _ => return Response::Error($error.into()),
             },
         }
     };

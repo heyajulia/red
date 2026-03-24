@@ -25,11 +25,11 @@ fn parse_options(options: &[Value]) -> Result<(SetOption, GetOption), Response> 
     for option in options {
         let opt = match option {
             Value::BulkString(BulkString::Filled(b)) => b,
-            _ => return Err(Response::Error("invalid argument type")),
+            _ => return Err(Response::Error("invalid argument type".into())),
         };
 
         let decoded = str::from_utf8(opt)
-            .map_err(|_| Response::Error("invalid argument type"))?
+            .map_err(|_| Response::Error("invalid argument type".into()))?
             .to_uppercase();
 
         match decoded.as_str() {
@@ -38,7 +38,7 @@ fn parse_options(options: &[Value]) -> Result<(SetOption, GetOption), Response> 
                     SetOption::IfExists
                 } else {
                     return Err(Response::Error(
-                        "'XX' and 'NX' can't be used at the same time",
+                        "'XX' and 'NX' can't be used at the same time".into(),
                     ));
                 }
             }
@@ -47,14 +47,12 @@ fn parse_options(options: &[Value]) -> Result<(SetOption, GetOption), Response> 
                     SetOption::IfNotExists
                 } else {
                     return Err(Response::Error(
-                        "'XX' and 'NX' can't be used at the same time",
+                        "'XX' and 'NX' can't be used at the same time".into(),
                     ));
                 }
             }
             "GET" => get_option = GetOption::Get,
-            // TODO: It would be nice to be able to use non-static strings in errors, so we could do:
-            // Err(Response::Error(format!("'{decoded}' is not a valid option"))),
-            _ => return Err(Response::Error("invalid option")),
+            _ => return Err(Response::Error(format!("'{decoded}' is not a valid option").into())),
         };
     }
 
@@ -64,7 +62,7 @@ fn parse_options(options: &[Value]) -> Result<(SetOption, GetOption), Response> 
 impl Command for Set {
     fn execute(&self, data: &mut Data, arguments: &[Value]) -> Response {
         if !(2..=4).contains(&arguments.len()) {
-            return Response::Error("wrong number of arguments");
+            return Response::Error("wrong number of arguments".into());
         }
 
         let key = bulk_string_or_error!(&arguments[0], "invalid argument #1");
