@@ -18,18 +18,34 @@ enum GetOption {
     Get,
 }
 
-fn parse_options(options: &[Value]) -> Result<(SetOption, GetOption), Response> {
+enum OptionError {
+    InvalidType,
+    Conflict,
+    Unknown(String),
+}
+
+impl From<OptionError> for Response {
+    fn from(e: OptionError) -> Self {
+        Response::Error(match e {
+            OptionError::InvalidType => "invalid argument type".into(),
+            OptionError::Conflict => "'XX' and 'NX' can't be used at the same time".into(),
+            OptionError::Unknown(opt) => format!("'{opt}' is not a valid option").into(),
+        })
+    }
+}
+
+fn parse_options(options: &[Value]) -> Result<(SetOption, GetOption), OptionError> {
     let mut set_option = SetOption::NotSpecified;
     let mut get_option = GetOption::NotSpecified;
 
     for option in options {
         let opt = match option {
             Value::BulkString(BulkString::Filled(b)) => b,
-            _ => return Err(Response::Error("invalid argument type".into())),
+            _ => return Err(OptionError::InvalidType),
         };
 
         let decoded = str::from_utf8(opt)
-            .map_err(|_| Response::Error("invalid argument type".into()))?
+            .map_err(|_| OptionError::InvalidType)?
             .to_uppercase();
 
         match decoded.as_str() {
@@ -37,22 +53,18 @@ fn parse_options(options: &[Value]) -> Result<(SetOption, GetOption), Response> 
                 set_option = if set_option == SetOption::NotSpecified {
                     SetOption::IfExists
                 } else {
-                    return Err(Response::Error(
-                        "'XX' and 'NX' can't be used at the same time".into(),
-                    ));
+                    return Err(OptionError::Conflict);
                 }
             }
             "NX" => {
                 set_option = if set_option == SetOption::NotSpecified {
                     SetOption::IfNotExists
                 } else {
-                    return Err(Response::Error(
-                        "'XX' and 'NX' can't be used at the same time".into(),
-                    ));
+                    return Err(OptionError::Conflict);
                 }
             }
             "GET" => get_option = GetOption::Get,
-            _ => return Err(Response::Error(format!("'{decoded}' is not a valid option").into())),
+            _ => return Err(OptionError::Unknown(decoded)),
         };
     }
 
@@ -76,7 +88,7 @@ impl Command for Set {
                 set_option = s;
                 get_option = g;
             }
-            Err(e) => return e,
+            Err(e) => return e.into(),
         };
 
         match (set_option, get_option) {
