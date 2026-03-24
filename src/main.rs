@@ -11,7 +11,6 @@ use crate::commands::*;
 
 mod array;
 mod bulk_string;
-mod byte_reader;
 mod commands;
 
 pub(crate) type Data = HashMap<BulkString, BulkString>;

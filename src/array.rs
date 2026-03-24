@@ -1,5 +1,6 @@
-use crate::bulk_string::{parse as parse_bulk_string, read_crlf, read_length, BulkString};
-use crate::byte_reader::ByteReader;
+use bytes::{Buf, Bytes};
+
+use crate::bulk_string::{parse as parse_bulk_string, read_byte, read_crlf, read_length, BulkString};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Array {
@@ -22,8 +23,8 @@ pub(crate) enum ArrayFormatError {
     LengthTrailer,
 }
 
-fn parse_value(reader: &mut ByteReader) -> Result<Value, ArrayFormatError> {
-    match reader.peek_byte() {
+fn parse_value(reader: &mut Bytes) -> Result<Value, ArrayFormatError> {
+    match reader.chunk().first() {
         Some(b'$') => match parse_bulk_string(reader) {
             Ok(bulk_string) => Ok(Value::BulkString(bulk_string)),
             Err(_) => Err(ArrayFormatError::Data),
@@ -33,9 +34,9 @@ fn parse_value(reader: &mut ByteReader) -> Result<Value, ArrayFormatError> {
 }
 
 pub(crate) fn parse(data: &[u8]) -> Result<Array, ArrayFormatError> {
-    let mut reader = ByteReader::new(data);
+    let mut reader = Bytes::copy_from_slice(data);
 
-    if reader.read_byte() != Some(b'*') {
+    if read_byte(&mut reader) != Some(b'*') {
         return Err(ArrayFormatError::Prefix);
     }
 
@@ -46,7 +47,7 @@ pub(crate) fn parse(data: &[u8]) -> Result<Array, ArrayFormatError> {
 
     match length {
         -1 => {
-            if reader.bytes_remaining() != 2 {
+            if reader.remaining() != 2 {
                 return Err(ArrayFormatError::Data);
             }
 
@@ -57,7 +58,7 @@ pub(crate) fn parse(data: &[u8]) -> Result<Array, ArrayFormatError> {
             Ok(Array::Null)
         }
         0 => {
-            if reader.bytes_remaining() != 2 {
+            if reader.remaining() != 2 {
                 return Err(ArrayFormatError::Data);
             }
 
@@ -78,7 +79,7 @@ pub(crate) fn parse(data: &[u8]) -> Result<Array, ArrayFormatError> {
                 values.push(parse_value(&mut reader)?);
             }
 
-            if reader.bytes_remaining() != 0 {
+            if reader.remaining() != 0 {
                 return Err(ArrayFormatError::Data);
             }
 

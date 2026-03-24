@@ -1,6 +1,6 @@
 use std::str;
 
-use crate::byte_reader::ByteReader;
+use bytes::{Buf, Bytes};
 
 const MAX_BULK_STRING_LENGTH: isize = 512 * 1024 * 1024;
 
@@ -19,8 +19,8 @@ pub(crate) enum BulkStringFormatError {
     Data,
 }
 
-pub(crate) fn parse(reader: &mut ByteReader) -> Result<BulkString, BulkStringFormatError> {
-    if reader.read_byte() != Some(b'$') {
+pub(crate) fn parse(reader: &mut Bytes) -> Result<BulkString, BulkStringFormatError> {
+    if read_byte(reader) != Some(b'$') {
         return Err(BulkStringFormatError::Prefix);
     }
 
@@ -57,7 +57,7 @@ pub(crate) fn parse(reader: &mut ByteReader) -> Result<BulkString, BulkStringFor
                 return Err(BulkStringFormatError::LengthTrailer);
             }
 
-            let bytes = reader.slice(length as usize).to_vec();
+            let bytes = reader.copy_to_bytes(length as usize).to_vec();
 
             if !read_crlf(reader) {
                 return Err(BulkStringFormatError::Data);
@@ -68,16 +68,25 @@ pub(crate) fn parse(reader: &mut ByteReader) -> Result<BulkString, BulkStringFor
     }
 }
 
-pub(crate) fn read_length(reader: &mut ByteReader) -> Option<isize> {
-    let length_bytes = reader.read_while(|b| b != b'\r');
+pub(crate) fn read_byte(reader: &mut Bytes) -> Option<u8> {
+    if reader.has_remaining() {
+        Some(reader.get_u8())
+    } else {
+        None
+    }
+}
 
-    str::from_utf8(length_bytes)
+pub(crate) fn read_length(reader: &mut Bytes) -> Option<isize> {
+    let len = reader.iter().position(|&b| b == b'\r').unwrap_or(reader.remaining());
+    let length_bytes = reader.copy_to_bytes(len);
+
+    str::from_utf8(&length_bytes)
         .ok()
         .and_then(|s| s.parse().ok())
 }
 
-pub(crate) fn read_crlf(reader: &mut ByteReader) -> bool {
-    reader.read_byte() == Some(b'\r') && reader.read_byte() == Some(b'\n')
+pub(crate) fn read_crlf(reader: &mut Bytes) -> bool {
+    read_byte(reader) == Some(b'\r') && read_byte(reader) == Some(b'\n')
 }
 
 #[cfg(test)]
@@ -86,21 +95,21 @@ mod tests {
 
     #[test]
     fn parse_empty_bulk_string() {
-        let mut reader = ByteReader::new(b"$0\r\n\r\n");
+        let mut reader = Bytes::from_static(b"$0\r\n\r\n");
 
         assert_eq!(Ok(BulkString::Empty), parse(&mut reader));
     }
 
     #[test]
     fn parse_null_bulk_string() {
-        let mut reader = ByteReader::new(b"$-1\r\n");
+        let mut reader = Bytes::from_static(b"$-1\r\n");
 
         assert_eq!(Ok(BulkString::Null), parse(&mut reader));
     }
 
     #[test]
     fn parse_hello_bulk_string() {
-        let mut reader = ByteReader::new(b"$5\r\nhello\r\n");
+        let mut reader = Bytes::from_static(b"$5\r\nhello\r\n");
 
         assert_eq!(
             Ok(BulkString::Filled(b"hello".to_vec())),
