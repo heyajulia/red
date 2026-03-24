@@ -15,6 +15,8 @@ mod commands;
 
 pub(crate) type Data = HashMap<BulkString, BulkString>;
 
+const MAX_BULK_STRING_LENGTH: isize = 512 * 1024 * 1024;
+
 fn read_frame(reader: &mut BufReader<TcpStream>) -> io::Result<Vec<u8>> {
     let mut frame = Vec::new();
 
@@ -53,6 +55,13 @@ fn read_frame(reader: &mut BufReader<TcpStream>) -> io::Result<Vec<u8>> {
 
         if length < 0 {
             continue;
+        }
+
+        if length > MAX_BULK_STRING_LENGTH {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "bulk string length exceeds maximum",
+            ));
         }
 
         // Read exactly length bytes + \r\n
