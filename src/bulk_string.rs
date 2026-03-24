@@ -121,4 +121,28 @@ mod tests {
             parse(&mut reader)
         );
     }
+
+    #[test]
+    fn missing_prefix() {
+        let mut reader = Bytes::from_static(b"hello\r\n");
+        assert_eq!(Err(BulkStringFormatError::Prefix), parse(&mut reader));
+    }
+
+    #[test]
+    fn truncated_data() {
+        let mut reader = Bytes::from_static(b"$10\r\nhi\r\n");
+        assert_eq!(Err(BulkStringFormatError::Data), parse(&mut reader));
+    }
+
+    #[test]
+    fn missing_length() {
+        let mut reader = Bytes::from_static(b"$\r\n");
+        assert_eq!(Err(BulkStringFormatError::Length), parse(&mut reader));
+    }
+
+    #[test]
+    fn garbage_input() {
+        let mut reader = Bytes::from_static(b"$abc\r\n");
+        assert_eq!(Err(BulkStringFormatError::Length), parse(&mut reader));
+    }
 }

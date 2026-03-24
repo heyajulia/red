@@ -99,3 +99,58 @@ pub(crate) use del::Del;
 pub(crate) use get::Get;
 pub(crate) use ping::Ping;
 pub(crate) use set::Set;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serialize_simple_string() {
+        let bytes: Vec<u8> = Response::SimpleString("OK").into();
+        assert_eq!(bytes, b"+OK\r\n");
+    }
+
+    #[test]
+    fn serialize_error() {
+        let bytes: Vec<u8> = Response::Error("something went wrong".into()).into();
+        assert_eq!(bytes, b"-something went wrong\r\n");
+    }
+
+    #[test]
+    fn serialize_error_dynamic() {
+        let msg = format!("unknown command '{}'", "FOO");
+        let bytes: Vec<u8> = Response::Error(msg.into()).into();
+        assert_eq!(bytes, b"-unknown command 'FOO'\r\n");
+    }
+
+    #[test]
+    fn serialize_bulk_string_filled() {
+        let bytes: Vec<u8> =
+            Response::BulkString(BulkString::Filled(b"hello".to_vec())).into();
+        assert_eq!(bytes, b"$5\r\nhello\r\n");
+    }
+
+    #[test]
+    fn serialize_bulk_string_empty() {
+        let bytes: Vec<u8> = Response::BulkString(BulkString::Empty).into();
+        assert_eq!(bytes, b"$0\r\n\r\n");
+    }
+
+    #[test]
+    fn serialize_bulk_string_null() {
+        let bytes: Vec<u8> = Response::BulkString(BulkString::Null).into();
+        assert_eq!(bytes, b"$-1\r\n");
+    }
+
+    #[test]
+    fn serialize_integer() {
+        let bytes: Vec<u8> = Response::Integer(42).into();
+        assert_eq!(bytes, b":42\r\n");
+    }
+
+    #[test]
+    fn serialize_negative_integer() {
+        let bytes: Vec<u8> = Response::Integer(-1).into();
+        assert_eq!(bytes, b":-1\r\n");
+    }
+}

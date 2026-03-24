@@ -17,3 +17,34 @@ impl Command for Ping {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_args() {
+        let mut data = Data::new();
+        assert_eq!(Ping.execute(&mut data, &[]), Response::SimpleString("PONG"));
+    }
+
+    #[test]
+    fn with_message() {
+        let mut data = Data::new();
+        let args = &[Value::BulkString(BulkString::Filled(b"hello".to_vec()))];
+        assert_eq!(
+            Ping.execute(&mut data, args),
+            Response::BulkString(BulkString::Filled(b"hello".to_vec()))
+        );
+    }
+
+    #[test]
+    fn too_many_args() {
+        let mut data = Data::new();
+        let args = &[
+            Value::BulkString(BulkString::Filled(b"a".to_vec())),
+            Value::BulkString(BulkString::Filled(b"b".to_vec())),
+        ];
+        assert!(matches!(Ping.execute(&mut data, args), Response::Error(_)));
+    }
+}

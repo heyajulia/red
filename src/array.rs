@@ -113,4 +113,29 @@ mod tests {
         assert_eq!(Ok(Array::Null), parse(b"*-1\r\n"));
     }
 
+    #[test]
+    fn missing_prefix() {
+        assert_eq!(Err(ArrayFormatError::Prefix), parse(b"hello"));
+    }
+
+    #[test]
+    fn garbage_length() {
+        assert_eq!(Err(ArrayFormatError::Length), parse(b"*abc\r\n"));
+    }
+
+    #[test]
+    fn trailing_data() {
+        assert_eq!(
+            Err(ArrayFormatError::Data),
+            parse(b"*1\r\n$2\r\nhi\r\nextra")
+        );
+    }
+
+    #[test]
+    fn truncated_element() {
+        assert_eq!(
+            Err(ArrayFormatError::Data),
+            parse(b"*1\r\n$10\r\nhi\r\n")
+        );
+    }
 }
